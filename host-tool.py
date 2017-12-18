@@ -17,6 +17,10 @@ OUT_FILE_PREFIX='host-urls-'
 OUT_FILE_EXT='.txt'
 
 
+class HostToolError(Except)
+
+
+
 class HostsTool:
     # Interface -------------------------
 
@@ -123,14 +127,15 @@ def initLog():
 
 
 def printUsage():
-    logging.info('Usage: host-tool [-merge urlFile mergedFile] [-union file1 file2 outFile] [-f on/off] ')
-    logging.info('-union    file1 file2 outFile, where if outFile is "STDOUT", print to screen')
-    logging.info('-merge    combine urlFile urls with hosts --> mergedFile')
-    logging.info('-f        turn facebook access ON or OFF')
+    print('\n------------------------------------------------------\n')
+    print('Usage: host-tool [-merge urlFile mergedFile] [-union file1 file2 outFile] [-f on/off]\n')
+    print('-union    file1 file2 outFile, where if outFile is "STDOUT", print to screen')
+    print('-merge    combine urlFile urls with hosts --> mergedFile')
+    print('-f        turn facebook access ON or OFF\n')
 
 
-def handleMerge(hostsTool, externalHostsFile, mergedFile):
-    logging.info('Merging URLs from local hosts and "%s" to: %s' % (externalHostsFile, mergedFile))
+def handleMerge(hostsTool, urlHostsFile, mergedFile):
+    logging.info('Merging URLs from local hosts and %s to: %s' % (urlHostsFile, mergedFile))
 
 
 def handleUnion():
@@ -146,11 +151,15 @@ if '__main__' == __name__:
     args = sys.argv
     numArgs = len(args)
 
-    possibleArgs = [
-        '-merge', 'urlFile', 'mergedFile',
-        '-compare', 'file1', 'file2', 'outFile',
+    # possibleArgs = [
+    #     '-merge', 'urlFile', 'mergedFile',
+    #     '-compare', 'file1', 'file2', 'outFile',
+    #     '-f', ''
+    # ]
 
-    ]
+    # operations = {
+    #     '-merge': 
+    # }
 
     if numArgs <= 1 or numArgs > 9:
         printUsage()
@@ -166,23 +175,29 @@ if '__main__' == __name__:
         urlFileIndex = mergeIndex + 1
         mergeFileIndex = urlFileIndex + 1
         mergedFile = ''
-        externalHostsFile = ''
+        urlFile = ''
+
+        try:
+            urlFile = args[urlFileIndex]
+        except IndexError:
+            logging.error('-merge urlFile missing')
+            printUsage()
+            sys.exit(1)
 
         try:
             mergedFile = args[mergeFileIndex]
         except IndexError:
-            logging.error('-merge argument missing required mergedFile argument')
+            logging.error('-merge mergedFile missing')
             printUsage()
             sys.exit(1)
 
-        handleMerge(hostsTool, mergedFile)
-        #logging.info('Merging URLs from local hosts and "%s" to: %s' % (mergedFile))
-
-        #hostsTool.mergeUrls(mergedFile)
+        handleMerge(hostsTool, urlFile, mergedFile)
 
 
     except ValueError:
         logging.debug('-merge argument not present')
+    except HostToolError as error:
+        logging.debug('Error performing action: %s' % error)
 
 
     #ht = HostTool()
