@@ -129,6 +129,16 @@ def printUsage():
     logging.info('-f        turn facebook access ON or OFF')
 
 
+def handleMerge(hostsTool, externalHostsFile, mergedFile):
+    logging.info('Merging URLs from local hosts and "%s" to: %s' % (externalHostsFile, mergedFile))
+
+
+def handleUnion():
+    pass
+
+
+
+
 # main
 if '__main__' == __name__:
     initLog()
@@ -153,8 +163,10 @@ if '__main__' == __name__:
         mergeIndex = args.index('-merge')
         logging.debug('-merge is at index %s' % mergeIndex)
 
-        mergeFileIndex = mergeIndex + 1
+        urlFileIndex = mergeIndex + 1
+        mergeFileIndex = urlFileIndex + 1
         mergedFile = ''
+        externalHostsFile = ''
 
         try:
             mergedFile = args[mergeFileIndex]
@@ -163,9 +175,10 @@ if '__main__' == __name__:
             printUsage()
             sys.exit(1)
 
-        logging.info('Merging URLs from local hosts and "%s" to: %s' % (mergedFile))
+        handleMerge(hostsTool, mergedFile)
+        #logging.info('Merging URLs from local hosts and "%s" to: %s' % (mergedFile))
 
-        hostsTool.mergeUrls(mergedFile)
+        #hostsTool.mergeUrls(mergedFile)
 
 
     except ValueError:
