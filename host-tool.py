@@ -6,18 +6,22 @@ import re
 import sys
 
 # Constants
-APP_NAME = 'HostTool'
+APP_NAME = 'HostsTool'
 AUTHOR = 'Ned'
 DATETIME_FORMAT = "%Y%m%d.%H%M%S"
 LOG_FILE = APP_NAME + '.log'
 LOG_FORMAT = "%(asctime)s %(levelname)-7s %(message)s"
 HOSTS_FILE = '/etc/hosts'
 HOST_URL_REGEX = r"^\d+(?:\.\d+){3}\s+(\w.*$)"
+MAX_ARGS = 9
 OUT_FILE_PREFIX='host-urls-'
 OUT_FILE_EXT='.txt'
 
 
-class HostToolError(Except)
+# Exception types
+class HostToolError(Exception):
+    pass
+
 
 
 
@@ -28,26 +32,48 @@ class HostsTool:
         # Read hosts file
         pass
 
-    def getUrls(self):
-        logging.info('Returning host URLs')
+    #def getUrls(self):
+    #    logging.info('Returning host URLs')
 
-        return self._getHostsUrls()
+#        return self._getHostsUrls()
 
-    def mergeUrls(self, mergedFilename):
-        pass
+
+    def merge(self, urlFile, outFilename):
+        logging.info("Merging URLs in %s with HOSTS into %s" % (urlFile, outFilename))
+
+        # Read urls from urlfile
+        fileUrls = self._getFileUrls(outFilename)
+        logging.debug("Read %s URLs from %s" % (len(fileUrls), outFilename))
+
+        # Read urls from Hosts
+        hostsUrls = self._getHostsUrls()
+        logging.debug("Read %s URLs from %s" % (len(hostsUrls)))
+
+        # Add both to a set
+        result = set()
+
+        for url in fileUrls:
+            result.add(url)
+
+        for url in hostsUrls:
+            result.add(url)
+
+        self._writeUrlsToFile(result, outFilename)
 
 
     def writeUrlsToFile(self):
         urls = self._getHostsUrls()
         outFilename = self._getOutputFilename()
 
-        logging.info('Writing %s URLs to file %s' % (len(urls), outFilename))
+        self._writeUrlsToFile(urls, outFilename)
+
+        '''         logging.info('Writing %s URLs to file %s' % (len(urls), outFilename))
 
         with open(outFilename, 'w') as outFile:
             for url in urls:
                 outFile.write(url + '\n')
 
-            outFile.close()            
+            outFile.close()   '''          
 
 
     def turnFacebook(self, onOff):
@@ -56,11 +82,13 @@ class HostsTool:
         else:
             logging.info('Turning Facebook OFF')
 
+
     def turnSpecial(self, onOff):
         if onOff is True:
             logging.info('Turning Special ON')
         else:
             logging.info('Turning Special OFF')
+
 
 
     # Private --------------------------
@@ -105,7 +133,16 @@ class HostsTool:
 
     def _unhashUrl(self, hash):
         return 'blah'
-            
+
+    def _writeUrlsToFile(self, urls, filename):
+        logging.info('Writing %s URLs to file %s' % (len(urls), filename))
+
+        with open(filename, 'w') as outFile:
+            for url in urls:
+                outFile.write(url + '\n')
+
+            outFile.close()  
+
 
 def initLog():
     format = logging.Formatter(LOG_FORMAT)
@@ -128,10 +165,11 @@ def initLog():
 
 def printUsage():
     print('\n------------------------------------------------------\n')
-    print('Usage: host-tool [-merge urlFile mergedFile] [-union file1 file2 outFile] [-f on/off]\n')
+    print('Usage: host-tool [-merge urlFile mergedFile] [-union file1 file2 outFile] [-f on/off] [-w]\n')
     print('-union    file1 file2 outFile, where if outFile is "STDOUT", print to screen')
     print('-merge    combine urlFile urls with hosts --> mergedFile')
-    print('-f        turn facebook access ON or OFF\n')
+    print('-f        turn facebook access ON or OFF')
+    print('-w        write current hosts urls to file\n')
 
 
 def handleMerge(hostsTool, urlHostsFile, mergedFile):
@@ -144,6 +182,58 @@ def handleUnion():
 
 
 
+
+def checkDoMerge(args):
+    key = '-merge'
+
+    try:
+        index = args.index(key)
+        logging.debug(key + ' is at index %s' % index)
+
+        urlFileIndex = index + 1
+        urlFile = ''
+        outFileIndex = urlFileIndex + 1
+        outFile = ''
+
+        try:
+            urlFile = args[urlFileIndex]
+        except IndexError:
+            logging.error(key + ' urlFile missing')
+            printUsage()
+            sys.exit(1)
+
+        try:
+            outFile = args[outFileIndex]
+        except IndexError:
+            logging.error(key + ' outFile missing')
+            printUsage()
+            sys.exit(1)
+
+        logging.debug("User specified merging %s with hosts into %s" % (urlFile, outFile))
+
+        return True, urlFile, outFile
+    except ValueError:
+        logging.debug(key + ' argument not present')
+
+    return (False, None, None)
+
+
+
+def checkDoWrite(args):
+    key = '-w'
+
+    try:
+        index = args.index(key)
+        logging.debug(key + ' is at index %s' % index)
+
+        return True
+    except ValueError:
+        logging.debug(key + ' argument not present')
+
+    return False
+
+
+
 # main
 if '__main__' == __name__:
     initLog()
@@ -151,54 +241,17 @@ if '__main__' == __name__:
     args = sys.argv
     numArgs = len(args)
 
-    # possibleArgs = [
-    #     '-merge', 'urlFile', 'mergedFile',
-    #     '-compare', 'file1', 'file2', 'outFile',
-    #     '-f', ''
-    # ]
-
-    # operations = {
-    #     '-merge': 
-    # }
-
-    if numArgs <= 1 or numArgs > 9:
+    if numArgs <= 1 or numArgs > MAX_ARGS:
         printUsage()
         sys.exit(1)
 
     hostsTool = HostsTool()
 
-    # Check -merge
-    try:
-        mergeIndex = args.index('-merge')
-        logging.debug('-merge is at index %s' % mergeIndex)
+    doMerge, urlFile, outFile = checkDoMerge(args)
+    doWrite = checkDoWrite(args)
 
-        urlFileIndex = mergeIndex + 1
-        mergeFileIndex = urlFileIndex + 1
-        mergedFile = ''
-        urlFile = ''
+    if doMerge:
+        hostsTool.merge(urlFile, outFile)
 
-        try:
-            urlFile = args[urlFileIndex]
-        except IndexError:
-            logging.error('-merge urlFile missing')
-            printUsage()
-            sys.exit(1)
-
-        try:
-            mergedFile = args[mergeFileIndex]
-        except IndexError:
-            logging.error('-merge mergedFile missing')
-            printUsage()
-            sys.exit(1)
-
-        handleMerge(hostsTool, urlFile, mergedFile)
-
-
-    except ValueError:
-        logging.debug('-merge argument not present')
-    except HostToolError as error:
-        logging.debug('Error performing action: %s' % error)
-
-
-    #ht = HostTool()
-    #ht.writeUrlsToFile()
+    if doWrite:
+        hostsTool.writeUrlsToFile()
