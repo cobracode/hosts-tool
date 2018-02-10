@@ -11,6 +11,7 @@ AUTHOR = 'Ned'
 DATETIME_FORMAT = "%Y%m%d.%H%M%S"
 LOG_FILE = APP_NAME + '.log'
 LOG_FORMAT = "%(asctime)s %(levelname)-7s %(message)s"
+LOG_LEVELS = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
 HOSTS_FILE = '/etc/hosts'
 HOST_URL_REGEX = r"^\d+(?:\.\d+){3}\s+(\w.*$)"
 MAX_ARGS = 9
@@ -27,16 +28,6 @@ class HostToolError(Exception):
 
 class HostsTool:
     # Interface -------------------------
-
-    def addNewUrls(self):
-        # Read hosts file
-        pass
-
-    #def getUrls(self):
-    #    logging.info('Returning host URLs')
-
-#        return self._getHostsUrls()
-
 
     def merge(self, urlFile, outFilename):
         logging.info("Merging URLs in %s with HOSTS into %s" % (urlFile, outFilename))
@@ -65,15 +56,7 @@ class HostsTool:
         urls = self._getHostsUrls()
         outFilename = self._getOutputFilename()
 
-        self._writeUrlsToFile(urls, outFilename)
-
-        '''         logging.info('Writing %s URLs to file %s' % (len(urls), outFilename))
-
-        with open(outFilename, 'w') as outFile:
-            for url in urls:
-                outFile.write(url + '\n')
-
-            outFile.close()   '''          
+        self._writeUrlsToFile(urls, outFilename)     
 
 
     def turnFacebook(self, onOff):
@@ -131,8 +114,10 @@ class HostsTool:
     def _hashUrl(self, url):
         return 'blah'
 
+
     def _unhashUrl(self, hash):
         return 'blah'
+
 
     def _writeUrlsToFile(self, urls, filename):
         logging.info('Writing %s URLs to file %s' % (len(urls), filename))
@@ -144,7 +129,7 @@ class HostsTool:
             outFile.close()  
 
 
-def initLog():
+def initLog(level):
     format = logging.Formatter(LOG_FORMAT)
 
     fileHandler = logging.FileHandler(LOG_FILE)
@@ -153,21 +138,22 @@ def initLog():
     fileHandler.setFormatter(format)
     screenHandler.setFormatter(format)
 
-    fileHandler.setLevel(logging.DEBUG)
-    screenHandler.setLevel(logging.DEBUG)
+    fileHandler.setLevel(level)
+    screenHandler.setLevel(level)
 
     logging.getLogger('').addHandler(fileHandler)
     logging.getLogger('').addHandler(screenHandler)
-    logging.getLogger('').setLevel(logging.DEBUG)
+    logging.getLogger('').setLevel(level)
 
     logging.debug('Log initialized')
 
 
 def printUsage():
     print('\n------------------------------------------------------\n')
-    print('Usage: host-tool [-merge urlFile mergedFile] [-union file1 file2 outFile] [-f on/off] [-w]\n')
+    print('Usage: host-tool [-merge urlFile mergedFile] [-union file1 file2 outFile] [-f on/off] [-w] [-l LEVEL]\n')
     print('-union    file1 file2 outFile, where if outFile is "STDOUT", print to screen')
     print('-merge    combine urlFile urls with hosts --> mergedFile')
+    print('-l        log level: %s' % LOG_LEVELS)
     print('-f        turn facebook access ON or OFF')
     print('-w        write current hosts urls to file\n')
 
@@ -233,22 +219,50 @@ def checkDoWrite(args):
     return False
 
 
+def checkLogLevel(args):
+    key = '-l'
+    defaultLevel = 'DEBUG'
+
+    try:
+        index = args.index(key)
+        print("%s is at index %s" % (key, index))
+
+        levelIndex = index + 1
+
+        try:
+            level = args[levelIndex]
+
+            if level not in LOG_LEVELS:
+                print("%s level '%s' not valid. Need one of: %s" % (key, level, LOG_LEVELS))
+                return defaultLevel
+
+            return level
+        except IndexError:
+            print("%s log level missing. Using default of %s" % (key, defaultLevel))
+            return defaultLevel
+
+    except ValueError:
+        logging.debug("%s argument not present" % key)
+
+    return defaultLevel
+
+
 
 # main
 if '__main__' == __name__:
-    initLog()
-
     args = sys.argv
+    initLog(checkLogLevel(args))
+
     numArgs = len(args)
 
     if numArgs <= 1 or numArgs > MAX_ARGS:
         printUsage()
         sys.exit(1)
 
-    hostsTool = HostsTool()
-
     doMerge, urlFile, outFile = checkDoMerge(args)
     doWrite = checkDoWrite(args)
+
+    hostsTool = HostsTool()
 
     if doMerge:
         hostsTool.merge(urlFile, outFile)
