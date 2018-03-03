@@ -30,15 +30,15 @@ class HostsTool:
     # Interface -------------------------
 
     def merge(self, urlFile, outFilename):
-        logging.info("Merging URLs in %s with HOSTS into %s" % (urlFile, outFilename))
+        info("Merging URLs in %s with HOSTS into %s" % (urlFile, outFilename))
 
         # Read urls from urlfile
         fileUrls = self._getFileUrls(outFilename)
-        logging.debug("Read %s URLs from %s" % (len(fileUrls), outFilename))
+        debug("Read %s URLs from %s" % (len(fileUrls), outFilename))
 
         # Read urls from Hosts
         hostsUrls = self._getHostsUrls()
-        logging.debug("Read %s URLs from %s" % (len(hostsUrls)))
+        debug("Read %s URLs from %s" % (len(hostsUrls)))
 
         # Add both to a set
         result = set()
@@ -61,20 +61,24 @@ class HostsTool:
 
     def turnFacebook(self, onOff):
         if onOff is True:
-            logging.info('Turning Facebook ON')
+            info('Turning Facebook ON')
         else:
-            logging.info('Turning Facebook OFF')
+            info('Turning Facebook OFF')
 
 
     def turnSpecial(self, onOff):
         if onOff is True:
-            logging.info('Turning Special ON')
+            info('Turning Special ON')
         else:
-            logging.info('Turning Special OFF')
+            info('Turning Special OFF')
 
 
 
     # Private --------------------------
+
+    def _getFileUrls(self, filename):
+        pass
+
 
     def _getHostsUrls(self):
         hostLines = []
@@ -84,7 +88,7 @@ class HostsTool:
                 hostLines = hostsFile.read().splitlines()
                 hostsFile.close()
         except IOError:
-            logging.error("Hosts file '%s' not found" % HOSTS_FILE)
+            error("Hosts file '%s' not found" % HOSTS_FILE)
             return []
 
         # Use regex to get host(s) from each line and add to list
@@ -102,7 +106,7 @@ class HostsTool:
             for url in urlsString:
                 urls.add(url)
 
-        logging.info("Found %s URLs in hosts file" % len(urls))
+        info("Found %s URLs in hosts file" % len(urls))
 
         return sorted(urls)
 
@@ -120,7 +124,7 @@ class HostsTool:
 
 
     def _writeUrlsToFile(self, urls, filename):
-        logging.info('Writing %s URLs to file %s' % (len(urls), filename))
+        info('Writing %s URLs to file %s' % (len(urls), filename))
 
         with open(filename, 'w') as outFile:
             for url in urls:
@@ -130,22 +134,45 @@ class HostsTool:
 
 
 def initLog(level):
-    format = logging.Formatter(LOG_FORMAT)
+    logger = logging.getLogger('')
+
+    screenHandler = None
+
+    # this verison of python seems to come with
+    # streamhandler already, so configure it
+    # rather than add a new one if it exists
+    if logger.hasHandlers():
+        screenHandler = logger.handlers[0]
+    else:
+        screenHandler = logging.StreamHandler()
+        logger.addHandler(screenHandler)
 
     fileHandler = logging.FileHandler(LOG_FILE)
-    screenHandler = logging.StreamHandler()
 
+    format = logging.Formatter(LOG_FORMAT)
     fileHandler.setFormatter(format)
     screenHandler.setFormatter(format)
 
     fileHandler.setLevel(level)
     screenHandler.setLevel(level)
 
-    logging.getLogger('').addHandler(fileHandler)
-    logging.getLogger('').addHandler(screenHandler)
-    logging.getLogger('').setLevel(level)
+    logger.addHandler(fileHandler)
+    logger.setLevel(level)
 
-    logging.debug('Log initialized')
+    logger.debug('Logger intialized')
+
+
+def error(msg):
+    logging.error(msg)
+
+def warn(msg):
+    logging.warn(msg)
+
+def info(msg):
+    logging.info(msg)
+
+def debug(msg):
+    logging.debug(msg)
 
 
 def printUsage():
@@ -159,7 +186,7 @@ def printUsage():
 
 
 def handleMerge(hostsTool, urlHostsFile, mergedFile):
-    logging.info('Merging URLs from local hosts and %s to: %s' % (urlHostsFile, mergedFile))
+    info('Merging URLs from local hosts and %s to: %s' % (urlHostsFile, mergedFile))
 
 
 def handleUnion():
@@ -174,7 +201,7 @@ def checkDoMerge(args):
 
     try:
         index = args.index(key)
-        logging.debug(key + ' is at index %s' % index)
+        debug(key + ' is at index %s' % index)
 
         urlFileIndex = index + 1
         urlFile = ''
@@ -184,22 +211,22 @@ def checkDoMerge(args):
         try:
             urlFile = args[urlFileIndex]
         except IndexError:
-            logging.error(key + ' urlFile missing')
+            error(key + ' urlFile missing')
             printUsage()
             sys.exit(1)
 
         try:
             outFile = args[outFileIndex]
         except IndexError:
-            logging.error(key + ' outFile missing')
+            error(key + ' outFile missing')
             printUsage()
             sys.exit(1)
 
-        logging.debug("User specified merging %s with hosts into %s" % (urlFile, outFile))
+        debug("User specified merging %s with hosts into %s" % (urlFile, outFile))
 
         return True, urlFile, outFile
     except ValueError:
-        logging.debug(key + ' argument not present')
+        debug(key + ' argument not present')
 
     return (False, None, None)
 
@@ -210,11 +237,11 @@ def checkDoWrite(args):
 
     try:
         index = args.index(key)
-        logging.debug(key + ' is at index %s' % index)
+        debug(key + ' is at index %s' % index)
 
         return True
     except ValueError:
-        logging.debug(key + ' argument not present')
+        debug(key + ' argument not present')
 
     return False
 
@@ -225,7 +252,7 @@ def checkLogLevel(args):
 
     try:
         index = args.index(key)
-        print("%s is at index %s" % (key, index))
+        # print("%s is at index %s" % (key, index))
 
         levelIndex = index + 1
 
@@ -233,7 +260,7 @@ def checkLogLevel(args):
             level = args[levelIndex]
 
             if level not in LOG_LEVELS:
-                print("%s level '%s' not valid. Need one of: %s" % (key, level, LOG_LEVELS))
+                print("%s log level '%s' not valid. Need one of: %s.\nUsing default %s" % (key, level, LOG_LEVELS, defaultLevel))
                 return defaultLevel
 
             return level
@@ -242,7 +269,7 @@ def checkLogLevel(args):
             return defaultLevel
 
     except ValueError:
-        logging.debug("%s argument not present" % key)
+        print("%s (log level) argument not present; using %s" % (key, defaultLevel))
 
     return defaultLevel
 
